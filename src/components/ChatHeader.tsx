@@ -1,5 +1,5 @@
 import ModelSelector from './ModelSelector';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface Props {
   onClear: () => void;
@@ -20,40 +20,52 @@ export default function ChatHeader({
   onCancel, 
   isStreaming 
 }: Props) {
-  const [isHovered, setIsHovered] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [isTablet, setIsTablet] = useState(false);
+
+  useEffect(() => {
+    const checkScreen = () => {
+      setIsMobile(window.innerWidth < 640);
+      setIsTablet(window.innerWidth >= 640 && window.innerWidth < 1024);
+    };
+    checkScreen();
+    window.addEventListener('resize', checkScreen);
+    return () => window.removeEventListener('resize', checkScreen);
+  }, []);
 
   return (
     <header
-      className="relative flex items-center justify-between px-4 md:px-8 py-4 flex-wrap gap-3"
+      className="relative flex items-center justify-between px-3 sm:px-4 md:px-6 lg:px-8 py-2.5 sm:py-3 md:py-4 gap-2 sm:gap-3"
       style={{
         background: 'rgba(10, 14, 30, 0.85)',
         backdropFilter: 'blur(30px)',
         borderBottom: '1px solid rgba(255,255,255,0.05)',
         boxShadow: '0 4px 30px rgba(0,0,0,0.3)',
-        zIndex: 50
+        zIndex: 50,
+        minHeight: '60px'
       }}
     >
       {/* پس‌زمینه گرادیانت متحرک */}
       <div 
-        className="absolute inset-0 opacity-30 pointer-events-none"
+        className="absolute inset-0 opacity-20 sm:opacity-30 pointer-events-none"
         style={{
           background: 'radial-gradient(circle at 0% 50%, rgba(59,130,246,0.1), transparent 50%), radial-gradient(circle at 100% 50%, rgba(6,182,212,0.1), transparent 50%)',
         }}
       />
 
-      {/* Left: Bot info with Neon Glow */}
-      <div className="flex items-center gap-4 relative z-10">
+      {/* Left: Bot info - ریسپانسیو */}
+      <div className="flex items-center gap-2 sm:gap-3 md:gap-4 relative z-10 flex-shrink-0">
         <div className="relative group">
-          {/* حلقه نئونی اطراف آواتار */}
+          {/* حلقه نئونی - کوچک‌تر در موبایل */}
           <div 
-            className="absolute -inset-1 rounded-2xl opacity-75 blur-md transition-all duration-500 group-hover:opacity-100"
+            className="absolute -inset-0.5 sm:-inset-1 rounded-xl sm:rounded-2xl opacity-60 sm:opacity-75 blur-sm sm:blur-md transition-all duration-500 group-hover:opacity-100"
             style={{
               background: 'conic-gradient(from 0deg, #06b6d4, #3b82f6, #8b5cf6, #06b6d4)',
               animation: 'spin 4s linear infinite'
             }}
           />
           <div
-            className="relative w-12 h-12 rounded-2xl overflow-hidden"
+            className="relative w-9 h-9 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-xl sm:rounded-2xl overflow-hidden"
             style={{
               background: 'linear-gradient(135deg, #0f172a, #1e293b)',
               border: '2px solid rgba(255,255,255,0.1)'
@@ -65,46 +77,46 @@ export default function ChatHeader({
               className="w-full h-full object-cover"
             />
           </div>
-          {/* Status dot */}
+          {/* Status dot - کوچک‌تر در موبایل */}
           <div
-            className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-gray-900 transition-all duration-300 ${
+            className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-3.5 md:h-3.5 rounded-full border-2 border-gray-900 transition-all duration-300 ${
               isStreaming ? 'bg-yellow-400 animate-pulse' : 'bg-emerald-400'
             }`}
             style={{
               boxShadow: isStreaming 
-                ? '0 0 20px rgba(250,204,21,0.5)' 
-                : '0 0 20px rgba(52,211,153,0.5)'
+                ? '0 0 15px rgba(250,204,21,0.4)' 
+                : '0 0 15px rgba(52,211,153,0.4)'
             }}
           />
         </div>
 
         <div>
           <h2 
-            className="text-white font-bold text-lg leading-tight tracking-wide"
+            className="text-white font-bold text-sm sm:text-base md:text-lg leading-tight tracking-wide flex items-center flex-wrap gap-1"
             style={{
-              textShadow: '0 0 30px rgba(99,179,237,0.2), 0 0 60px rgba(99,179,237,0.1)'
+              textShadow: '0 0 30px rgba(99,179,237,0.2)'
             }}
           >
             بات باتن
-            <span className="ml-2 text-xs font-normal text-gray-400">v3.0</span>
+            <span className="text-[10px] sm:text-xs font-normal text-gray-400">v3.0</span>
           </h2>
-          <div className="flex items-center gap-2 mt-0.5">
-            <span className={`w-1.5 h-1.5 rounded-full inline-block transition-all duration-300 ${
+          <div className="flex items-center gap-1.5 sm:gap-2 mt-0.5">
+            <span className={`w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full inline-block transition-all duration-300 ${
               isStreaming ? 'bg-yellow-400 animate-pulse' : 'bg-emerald-400'
             }`} />
-            <p className={`text-xs font-medium transition-all duration-300 ${
+            <p className={`text-[10px] sm:text-xs font-medium transition-all duration-300 truncate ${
               isStreaming ? 'text-yellow-400' : 'text-emerald-400'
             }`}>
-              {isStreaming ? 'در حال تایپ...' : '● آنلاین · AI واقعی'}
+              {isStreaming ? 'در حال تایپ...' : isMobile ? 'آنلاین' : '● آنلاین · AI واقعی'}
             </p>
           </div>
         </div>
       </div>
 
-      {/* Center: Model Selector with Glassmorphism */}
-      <div className="relative z-10 flex items-center">
+      {/* Center: Model Selector - مخفی در موبایل، نمایش در تبلت و دسکتاپ */}
+      <div className="hidden sm:flex relative z-10 items-center flex-shrink-0">
         <div 
-          className="px-3 py-1.5 rounded-2xl"
+          className="px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl sm:rounded-2xl"
           style={{
             background: 'rgba(255,255,255,0.03)',
             border: '1px solid rgba(255,255,255,0.06)',
@@ -115,13 +127,13 @@ export default function ChatHeader({
         </div>
       </div>
 
-      {/* Right: Actions with Modern Design */}
-      <div className="flex items-center gap-2 relative z-10">
-        {/* Cancel Button */}
+      {/* Right: Actions - ریسپانسیو */}
+      <div className="flex items-center gap-1 sm:gap-1.5 md:gap-2 relative z-10 flex-shrink-0">
+        {/* Cancel Button - ریسپانسیو */}
         {isStreaming && onCancel && (
           <button
             onClick={onCancel}
-            className="relative flex items-center gap-2 px-4 py-2.5 rounded-2xl text-red-300 hover:text-white transition-all duration-300 text-xs font-bold animate-fadeInUp overflow-hidden group"
+            className="relative flex items-center gap-1 sm:gap-2 px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-2.5 rounded-xl sm:rounded-2xl text-red-300 hover:text-white transition-all duration-300 text-[10px] sm:text-xs font-bold animate-fadeInUp overflow-hidden group"
             style={{
               background: 'rgba(239,68,68,0.12)',
               border: '1px solid rgba(239,68,68,0.2)',
@@ -131,17 +143,17 @@ export default function ChatHeader({
             <span 
               className="absolute inset-0 bg-gradient-to-r from-red-500/20 to-red-600/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
             />
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" className="relative">
+            <svg width="12" height="12" sm:width="14" sm:height="14" viewBox="0 0 24 24" fill="currentColor" className="relative flex-shrink-0">
               <rect x="6" y="6" width="12" height="12" rx="2" />
             </svg>
-            <span className="relative hidden sm:inline">توقف</span>
+            <span className="relative hidden xs:inline">توقف</span>
           </button>
         )}
 
-        {/* Image Generate Button */}
+        {/* Image Generate Button - ریسپانسیو */}
         <button
           onClick={onImageGenerate}
-          className="relative p-2.5 rounded-2xl text-gray-400 hover:text-purple-400 transition-all duration-300 group overflow-hidden"
+          className="relative p-1.5 sm:p-2 md:p-2.5 rounded-xl sm:rounded-2xl text-gray-400 hover:text-purple-400 transition-all duration-300 group overflow-hidden"
           style={{
             background: 'rgba(255,255,255,0.03)',
             border: '1px solid rgba(255,255,255,0.05)',
@@ -151,8 +163,7 @@ export default function ChatHeader({
         >
           <span className="absolute inset-0 bg-gradient-to-r from-purple-500/10 to-pink-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
           <svg 
-            width="18" 
-            height="18" 
+            width="16" height="16" sm:width="18" sm:height="18" 
             viewBox="0 0 24 24" 
             fill="none" 
             stroke="currentColor" 
@@ -165,10 +176,10 @@ export default function ChatHeader({
           </svg>
         </button>
 
-        {/* Message Count Badge */}
+        {/* Message Count Badge - مخفی در موبایل */}
         {messageCount > 0 && (
           <div 
-            className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-2xl text-gray-400 text-xs font-medium"
+            className="hidden sm:flex items-center gap-1.5 md:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl sm:rounded-2xl text-gray-400 text-[10px] sm:text-xs font-medium"
             style={{
               background: 'rgba(255,255,255,0.03)',
               border: '1px solid rgba(255,255,255,0.05)',
@@ -176,14 +187,14 @@ export default function ChatHeader({
             }}
           >
             <span className="text-emerald-400">{messageCount}</span>
-            <span>پیام</span>
+            <span className="hidden md:inline">پیام</span>
           </div>
         )}
 
-        {/* Clear Chat Button */}
+        {/* Clear Chat Button - ریسپانسیو */}
         <button
           onClick={onClear}
-          className="relative p-2.5 rounded-2xl text-gray-400 hover:text-red-400 transition-all duration-300 group overflow-hidden"
+          className="relative p-1.5 sm:p-2 md:p-2.5 rounded-xl sm:rounded-2xl text-gray-400 hover:text-red-400 transition-all duration-300 group overflow-hidden"
           style={{
             background: 'rgba(255,255,255,0.03)',
             border: '1px solid rgba(255,255,255,0.05)',
@@ -193,8 +204,7 @@ export default function ChatHeader({
         >
           <span className="absolute inset-0 bg-gradient-to-r from-red-500/10 to-rose-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
           <svg 
-            width="18" 
-            height="18" 
+            width="16" height="16" sm:width="18" sm:height="18" 
             viewBox="0 0 24 24" 
             fill="none" 
             stroke="currentColor" 
@@ -207,7 +217,7 @@ export default function ChatHeader({
         </button>
       </div>
 
-      {/* انیمیشن CSS برای چرخش */}
+      {/* انیمیشن CSS */}
       <style>{`
         @keyframes spin {
           from { transform: rotate(0deg); }
@@ -219,6 +229,12 @@ export default function ChatHeader({
         }
         .animate-fadeInUp {
           animation: fadeInUp 0.3s ease-out;
+        }
+        
+        @media (max-width: 380px) {
+          .xs\\:inline {
+            display: inline !important;
+          }
         }
       `}</style>
     </header>

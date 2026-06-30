@@ -9,7 +9,17 @@ interface Props {
 export default function ChatInput({ onSend, disabled, isStreaming }: Props) {
   const [text, setText] = useState('');
   const [isFocused, setIsFocused] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const handleSend = () => {
     if (!text.trim() || disabled || isStreaming) return;
@@ -31,21 +41,22 @@ export default function ChatInput({ onSend, disabled, isStreaming }: Props) {
     const ta = textareaRef.current;
     if (!ta) return;
     ta.style.height = 'auto';
-    ta.style.height = Math.min(ta.scrollHeight, 160) + 'px';
+    ta.style.height = Math.min(ta.scrollHeight, 120) + 'px';
   };
 
-  // Auto-focus on mount
   useEffect(() => {
-    setTimeout(() => {
-      textareaRef.current?.focus();
-    }, 100);
-  }, []);
+    if (!isMobile) {
+      setTimeout(() => {
+        textareaRef.current?.focus();
+      }, 100);
+    }
+  }, [isMobile]);
 
   return (
     <div 
-      className="relative p-3 md:p-4"
+      className="relative p-2 sm:p-3 md:p-4"
       style={{
-        background: 'rgba(5, 9, 20, 0.9)',
+        background: 'rgba(5, 9, 20, 0.95)',
         backdropFilter: 'blur(20px)',
         borderTop: '1px solid rgba(255,255,255,0.05)',
         boxShadow: '0 -4px 30px rgba(0,0,0,0.3)'
@@ -60,8 +71,8 @@ export default function ChatInput({ onSend, disabled, isStreaming }: Props) {
       />
 
       <div
-        className={`relative flex items-end gap-2 md:gap-3 p-2 rounded-2xl transition-all duration-300 group ${
-          isFocused ? 'ring-2 ring-blue-500/40' : ''
+        className={`relative flex items-end gap-1.5 sm:gap-2 md:gap-3 p-1.5 sm:p-2 rounded-xl sm:rounded-2xl transition-all duration-300 group ${
+          isFocused ? 'ring-1 sm:ring-2 ring-blue-500/40' : ''
         }`}
         style={{
           background: isFocused 
@@ -73,10 +84,10 @@ export default function ChatInput({ onSend, disabled, isStreaming }: Props) {
             : '0 0 20px rgba(59,130,246,0.02)',
         }}
       >
-        {/* Attach Button with Tooltip */}
-        <div className="relative">
+        {/* Attach Button - مخفی در موبایل */}
+        <div className="relative hidden sm:block">
           <button
-            className="flex-shrink-0 p-2.5 rounded-xl text-gray-500 hover:text-gray-300 transition-all duration-300 group/attach"
+            className="flex-shrink-0 p-2 sm:p-2.5 rounded-xl text-gray-500 hover:text-gray-300 transition-all duration-300 group/attach"
             style={{
               background: 'rgba(255,255,255,0.03)',
               border: '1px solid rgba(255,255,255,0.05)',
@@ -84,8 +95,7 @@ export default function ChatInput({ onSend, disabled, isStreaming }: Props) {
             title="افزودن فایل (به زودی)"
           >
             <svg 
-              width="18" 
-              height="18" 
+              width="16" height="16" sm:width="18" sm:height="18"
               viewBox="0 0 24 24" 
               fill="none" 
               stroke="currentColor" 
@@ -96,7 +106,6 @@ export default function ChatInput({ onSend, disabled, isStreaming }: Props) {
               <path d="M12 8v8M8 12h8" />
             </svg>
           </button>
-          {/* Tooltip */}
           <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-[10px] rounded-lg opacity-0 group-hover/attach:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none"
             style={{
               background: 'rgba(0,0,0,0.8)',
@@ -109,8 +118,8 @@ export default function ChatInput({ onSend, disabled, isStreaming }: Props) {
           </span>
         </div>
 
-        {/* Textarea with Gradient Scroll */}
-        <div className="relative flex-1">
+        {/* Textarea */}
+        <div className="relative flex-1 min-w-0">
           <textarea
             ref={textareaRef}
             value={text}
@@ -119,28 +128,29 @@ export default function ChatInput({ onSend, disabled, isStreaming }: Props) {
             onKeyDown={handleKey}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
-            placeholder={disabled || isStreaming ? 'بات باتن در حال پاسخ‌دهی...' : 'پیامتون رو اینجا بنویسید...'}
+            placeholder={disabled || isStreaming ? 'در حال پاسخ‌دهی...' : isMobile ? 'پیام...' : 'پیامتون رو اینجا بنویسید...'}
             rows={1}
-            className="w-full bg-transparent text-white placeholder-gray-500 resize-none outline-none text-sm leading-relaxed py-2.5 px-1"
+            className="w-full bg-transparent text-white placeholder-gray-500 resize-none outline-none text-sm leading-relaxed py-2 sm:py-2.5 px-1"
             style={{
-              maxHeight: '160px',
+              maxHeight: '120px',
               direction: 'rtl',
               scrollbarWidth: 'thin',
-              scrollbarColor: 'rgba(59,130,246,0.3) transparent'
+              scrollbarColor: 'rgba(59,130,246,0.3) transparent',
+              fontSize: isMobile ? '14px' : '15px'
             }}
           />
-          {/* خط‌نما (Cursor) */}
+          {/* خط‌نما */}
           <div 
-            className="absolute top-1/2 -translate-y-1/2 right-0 w-0.5 h-5 bg-blue-400 animate-pulse opacity-0 pointer-events-none"
+            className="absolute top-1/2 -translate-y-1/2 right-0 w-0.5 h-4 sm:h-5 bg-blue-400 animate-pulse opacity-0 pointer-events-none"
             style={{ opacity: isFocused && !text ? 1 : 0 }}
           />
         </div>
 
-        {/* Send Button with Gradient */}
+        {/* Send Button - ریسپانسیو */}
         <button
           onClick={handleSend}
           disabled={!text.trim() || disabled || isStreaming}
-          className={`flex-shrink-0 w-11 h-11 rounded-2xl flex items-center justify-center transition-all duration-300 relative overflow-hidden ${
+          className={`flex-shrink-0 w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 rounded-xl sm:rounded-2xl flex items-center justify-center transition-all duration-300 relative overflow-hidden ${
             text.trim() && !disabled && !isStreaming
               ? 'hover:scale-105 active:scale-95'
               : 'opacity-40 cursor-not-allowed'
@@ -150,14 +160,13 @@ export default function ChatInput({ onSend, disabled, isStreaming }: Props) {
               ? 'linear-gradient(135deg, #3b82f6, #06b6d4)'
               : 'rgba(255,255,255,0.05)',
             boxShadow: text.trim() && !disabled && !isStreaming
-              ? '0 0 30px rgba(59,130,246,0.3)'
+              ? '0 0 20px rgba(59,130,246,0.3)'
               : 'none'
           }}
         >
-          {/* انیمیشن موج روی دکمه */}
           {text.trim() && !disabled && !isStreaming && (
             <span 
-              className="absolute inset-0 rounded-2xl animate-ping opacity-20"
+              className="absolute inset-0 rounded-xl sm:rounded-2xl animate-ping opacity-20"
               style={{
                 background: 'linear-gradient(135deg, #3b82f6, #06b6d4)',
                 animationDuration: '1.5s'
@@ -165,8 +174,7 @@ export default function ChatInput({ onSend, disabled, isStreaming }: Props) {
             />
           )}
           <svg 
-            width="18" 
-            height="18" 
+            width="16" height="16" sm:width="18" sm:height="18"
             viewBox="0 0 24 24" 
             fill="none" 
             stroke="currentColor" 
@@ -183,8 +191,8 @@ export default function ChatInput({ onSend, disabled, isStreaming }: Props) {
         </button>
       </div>
 
-      {/* Shortcut Hints */}
-      <div className="flex items-center justify-between mt-2 px-1">
+      {/* Shortcut Hints - مخفی در موبایل */}
+      <div className="hidden sm:flex items-center justify-between mt-2 px-1">
         <div className="flex items-center gap-3">
           <span className="text-gray-600 text-[10px] flex items-center gap-1">
             <kbd className="px-1.5 py-0.5 rounded text-[9px] font-mono"
@@ -233,7 +241,7 @@ export default function ChatInput({ onSend, disabled, isStreaming }: Props) {
         )}
       </div>
 
-      {/* استایل برای اسکرول‌بار */}
+      {/* استایل اسکرول‌بار */}
       <style>{`
         textarea::-webkit-scrollbar {
           width: 3px;
@@ -247,6 +255,12 @@ export default function ChatInput({ onSend, disabled, isStreaming }: Props) {
         }
         textarea::-webkit-scrollbar-thumb:hover {
           background: rgba(59, 130, 246, 0.5);
+        }
+        
+        @media (max-width: 640px) {
+          textarea {
+            font-size: 16px !important;
+          }
         }
       `}</style>
     </div>
