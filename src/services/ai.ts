@@ -63,24 +63,54 @@ export async function streamAIResponse(
   onChunk: (chunk: string) => void,
   signal?: AbortSignal
 ): Promise<string> {
-  // ===== قانون ویژه: شناسایی سوال درباره سازنده =====
+  // ===== قانون ویژه: شناسایی سوال درباره سازنده (پوشش کامل همه حالت‌ها) =====
   const lastMessage = messages[messages.length - 1]?.content?.toLowerCase() || '';
   
-  const keywordsAboutCreator = [
-    'سازنده', 'سازندت', 'سازنده‌ات', 'سازنده ات',
-    'عقبه', 'عقبش', 'عقبه‌ات', 'عقبه ات',
-    'کی ساخته', 'چه کسی ساخته', 'کی ساخته‌ات', 'چه کسی ساخته‌ات',
-    'پشت صحنه', 'پشت‌صحنه', 'توسعه‌دهنده', 'توسعه دهنده',
-    'برنامه‌نویس', 'برنامه نویس', 'دوست', 'رفیق', 'پدر', 'بابا',
+  // کلمات کلیدی برای تشخیص سوال درباره سازنده - گسترده و کامل
+  const creatorKeywords = [
+    // فارسی
+    'سازنده', 'سازندت', 'سازنده‌ات', 'سازنده ات', 'سازندتون', 'سازنده‌تون',
+    'عقبه', 'عقبش', 'عقبه‌ات', 'عقبه ات', 'عقبه‌تون', 'پشت صحنه', 'پشت‌صحنه',
+    'کی ساخته', 'چه کسی ساخته', 'کی ساخته‌ات', 'چه کسی ساخته‌ات', 'کی ساخته‌تون',
+    'توسعه‌دهنده', 'توسعه دهنده', 'توسعه‌دهندت', 'توسعه دهنده‌ات',
+    'برنامه‌نویس', 'برنامه نویس', 'برنامه‌نویست', 'برنامه نویسش',
+    'دوست', 'رفیق', 'پدر', 'بابا', 'آقا', 'استاد',
+    'ایجاد کننده', 'ایجادکننده', 'خالق', 'بانی', 'پدیدآورنده',
+    'مالک', 'صاحب', 'مدیر', 'مدیریت', 'تیم', 'گروه',
+    'شرکت', 'سازمان', 'موسسه', 'مجموعه',
+    
+    // ترکیبی
+    'کی تو', 'کی این', 'کی بات', 'کی ربات', 'کی هوش',
+    'چی ساختی', 'چی درست کردی', 'چی نوشتی',
+    'پشتت کیه', 'پشت سرت', 'پشت و پناه',
+    'متعلق به کیه', 'مال کیه', 'مال کی',
+    
+    // انگلیسی
     'who made you', 'who created you', 'your creator', 'your father',
-    'pouya', 'عارف‌زاده', 'عارف زاده', 'پویا'
+    'who built you', 'who developed you', 'who programmed you',
+    'your maker', 'your owner', 'your boss', 'your master',
+    
+    // اسم خاص
+    'pouya', 'پویا', 'عارف', 'عارف‌زاده', 'عارف زاده', 'پویا عارف',
+    'pooya', 'arefzadeh', 'aref', 'pouya arefzadeh'
   ];
 
-  const isAboutCreator = keywordsAboutCreator.some(keyword => 
+  // بررسی با کلمات کلیدی
+  const hasCreatorKeyword = creatorKeywords.some(keyword => 
     lastMessage.includes(keyword)
   );
 
-  if (isAboutCreator) {
+  // بررسی با ترکیب کلمات (برای حالت‌های خاص)
+  const hasCreatorPhrase = 
+    (lastMessage.includes('کی') && (lastMessage.includes('ساخت') || lastMessage.includes('درست') || lastMessage.includes('نوشت') || lastMessage.includes('برنامه'))) ||
+    (lastMessage.includes('چه') && (lastMessage.includes('کسی') || lastMessage.includes('کس')) && (lastMessage.includes('ساخت') || lastMessage.includes('درست'))) ||
+    (lastMessage.includes('توسط') && (lastMessage.includes('چه') || lastMessage.includes('کی'))) ||
+    (lastMessage.includes('زیر') && lastMessage.includes('نظر')) ||
+    (lastMessage.includes('متعلق') && (lastMessage.includes('به') || lastMessage.includes('کی'))) ||
+    (lastMessage.includes('پشت') && (lastMessage.includes('کار') || lastMessage.includes('صحنه') || lastMessage.includes('تولید')));
+
+  // اگر هر کدوم از شرط‌ها درست بود، پاسخ بده
+  if (hasCreatorKeyword || hasCreatorPhrase) {
     const specialAnswer = `من رو **پویا عارف‌زاده** (Pouya Arefzadeh) طراحی و توسعه داده‌ست. ایشون یک توسعه‌دهندهٔ وب و مهندس هوش مصنوعی هستن با ۷ سال تجربهٔ متمرکز و تخصصی. 
 
 📋 **اطلاعات شناسنامه‌ای:**
