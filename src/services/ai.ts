@@ -1,9 +1,9 @@
+// src/services/ai.ts
+
 import { Message, SearchResult } from '../types';
 import { ENV } from '../config/env';
-import { searchWikipedia, searchWikipediaFa } from './wikipedia';
-import { searchWikidata } from './wikidata';
 import { searchKnowledge } from './knowledge';
-import { cache } from './cache';
+import { searchWikipedia, searchWikipediaFa } from './wikipedia';
 
 export interface AIModel {
   id: string;
@@ -62,7 +62,6 @@ const SYSTEM_PROMPT = `تو "بات باتن" هستی، یک دستیار هو�
 
 تو امروز ${new Date().toLocaleDateString('fa-IR')} پاسخ می‌دهی. در صورت نیاز از تاریخ فعلی در پاسخ‌هایت استفاده کن.`;
 
-// ===== اصلی‌ترین تابع: دریافت پاسخ با جستجوی هوشمند =====
 export async function streamAIResponse(
   messages: Message[],
   model: string,
@@ -71,19 +70,14 @@ export async function streamAIResponse(
 ): Promise<string> {
   const lastMessage = messages[messages.length - 1]?.content || '';
   
-  // ===== قانون ویژه: شناسایی سوال درباره سازنده =====
   const creatorResponse = checkCreatorQuestion(lastMessage);
   if (creatorResponse) {
     return streamText(creatorResponse, onChunk, signal);
   }
   
-  // ===== جستجوی هوشمند در منابع مختلف =====
   const searchResults = await smartSearch(lastMessage);
-  
-  // ===== ساخت پرامپت با اطلاعات جستجو شده =====
   const enhancedPrompt = buildEnhancedPrompt(lastMessage, searchResults);
   
-  // ===== ارسال به API =====
   const formattedMessages = [
     { role: 'system', content: SYSTEM_PROMPT },
     { role: 'system', content: enhancedPrompt },
@@ -93,7 +87,6 @@ export async function streamAIResponse(
     })),
   ];
   
-  // ===== تلاش با API‌های مختلف =====
   const apis = [
     () => callOpenAI(formattedMessages, model, onChunk, signal),
     () => callMistral(formattedMessages, model, onChunk, signal),
@@ -113,8 +106,6 @@ export async function streamAIResponse(
   
   throw new Error('تمامی روش‌های ارتباط با AI ناموفق بود. لطفاً دوباره تلاش کنید.');
 }
-
-// ===== توابع کمکی =====
 
 function checkCreatorQuestion(text: string): string | null {
   const lower = text.toLowerCase();
@@ -152,21 +143,20 @@ function checkCreatorQuestion(text: string): string | null {
 async function smartSearch(query: string): Promise<SearchResult[]> {
   const results: SearchResult[] = [];
   
-  // جستجوی همزمان در چند منبع
-  const [wikiEn, wikiFa, wikidata, knowledge] = await Promise.all([
-    searchWikipedia(query),
-    searchWikipediaFa(query),
-    searchWikidata(query),
-    searchKnowledge(query),
-  ]);
+  try {
+    const [wikiEn, wikiFa, knowledge] = await Promise.all([
+      searchWikipedia(query),
+      searchWikipediaFa(query),
+      searchKnowledge(query),
+    ]);
+    
+    results.push(...wikiEn);
+    results.push(...wikiFa);
+    results.push(...knowledge);
+  } catch (error) {
+    console.warn('Search failed:', error);
+  }
   
-  // ترکیب نتایج
-  results.push(...wikiEn);
-  results.push(...wikiFa);
-  results.push(...wikidata);
-  results.push(...knowledge);
-  
-  // حذف موارد تکراری بر اساس عنوان
   const unique = new Map<string, SearchResult>();
   for (const result of results) {
     const key = result.title.substring(0, 50);
@@ -201,8 +191,6 @@ function buildEnhancedPrompt(query: string, searchResults: SearchResult[]): stri
   return prompt;
 }
 
-// ===== توابع فراخوانی API =====
-
 async function callOpenAI(
   messages: any[],
   model: string,
@@ -218,7 +206,7 @@ async function callOpenAI(
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: model === 'openai' ? 'gpt-3.5-turbo' : 'gpt-3.5-turbo',
+      model: 'gpt-3.5-turbo',
       messages,
       stream: true,
       max_tokens: ENV.MAX_TOKENS,
@@ -306,8 +294,6 @@ async function callPollinations(
   return processStream(response, onChunk);
 }
 
-// ===== پردازش استریم =====
-
 async function processStream(
   response: Response,
   onChunk: (chunk: string) => void
@@ -349,8 +335,6 @@ async function processStream(
   return fullText;
 }
 
-// ===== استریم کردن متن (برای پاسخ‌های آماده) =====
-
 async function streamText(
   text: string,
   onChunk: (chunk: string) => void,
@@ -363,8 +347,6 @@ async function streamText(
   }
   return text;
 }
-
-// ===== تولید تصویر =====
 
 export function generateAIImage(prompt: string): string {
   const encoded = encodeURIComponent(prompt);
