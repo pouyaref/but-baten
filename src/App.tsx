@@ -7,7 +7,7 @@ import ChatHeader from './components/ChatHeader';
 import MessageBubble from './components/MessageBubble';
 import TypingIndicator from './components/TypingIndicator';
 import ChatInput from './components/ChatInput';
-import WelcomeScreen from './components/WelcomeScreen'; // ✅ این خط رو اضافه کن
+import WelcomeScreen from './components/WelcomeScreen';
 
 function generateId() {
   return Math.random().toString(36).substr(2, 9) + Date.now().toString(36);

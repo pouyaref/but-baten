@@ -1,6 +1,8 @@
-// src/services/ai.ts
-
 import { Message, SearchResult } from '../types';
+import { ENV } from '../config/env';
+import { searchWikipedia, searchWikipediaFa } from './wikipedia';
+import { searchWikidata } from './wikidata';
+import { searchKnowledge } from './knowledge';
 import { cache } from './cache';
 
 export interface AIModel {
@@ -150,8 +152,18 @@ function checkCreatorQuestion(text: string): string | null {
 async function smartSearch(query: string): Promise<SearchResult[]> {
   const results: SearchResult[] = [];
   
-  // فقط از دانش داخلی استفاده کن (بدون ویکی‌پدیا)
-  const knowledge = await searchKnowledge(query);
+  // جستجوی همزمان در چند منبع
+  const [wikiEn, wikiFa, wikidata, knowledge] = await Promise.all([
+    searchWikipedia(query),
+    searchWikipediaFa(query),
+    searchWikidata(query),
+    searchKnowledge(query),
+  ]);
+  
+  // ترکیب نتایج
+  results.push(...wikiEn);
+  results.push(...wikiFa);
+  results.push(...wikidata);
   results.push(...knowledge);
   
   // حذف موارد تکراری بر اساس عنوان
