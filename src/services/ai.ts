@@ -1,4 +1,9 @@
-import { Message } from '../types';
+import { Message, SearchResult } from '../types';
+import { ENV } from '../config/env';
+import { searchWikipedia, searchWikipediaFa } from './wikipedia';
+import { searchWikidata } from './wikidata';
+import { searchKnowledge } from './knowledge';
+import { cache } from './cache';
 
 export interface AIModel {
   id: string;
@@ -57,61 +62,77 @@ const SYSTEM_PROMPT = `تو "بات باتن" هستی، یک دستیار هو�
 
 تو امروز ${new Date().toLocaleDateString('fa-IR')} پاسخ می‌دهی. در صورت نیاز از تاریخ فعلی در پاسخ‌هایت استفاده کن.`;
 
+// ===== اصلی‌ترین تابع: دریافت پاسخ با جستجوی هوشمند =====
 export async function streamAIResponse(
   messages: Message[],
   model: string,
   onChunk: (chunk: string) => void,
   signal?: AbortSignal
 ): Promise<string> {
-  // ===== قانون ویژه: شناسایی سوال درباره سازنده (پوشش کامل همه حالت‌ها) =====
-  const lastMessage = messages[messages.length - 1]?.content?.toLowerCase() || '';
+  const lastMessage = messages[messages.length - 1]?.content || '';
   
-  // کلمات کلیدی برای تشخیص سوال درباره سازنده - گسترده و کامل
-  const creatorKeywords = [
-    // فارسی
-    'سازنده', 'سازندت', 'سازنده‌ات', 'سازنده ات', 'سازندتون', 'سازنده‌تون',
-    'عقبه', 'عقبش', 'عقبه‌ات', 'عقبه ات', 'عقبه‌تون', 'پشت صحنه', 'پشت‌صحنه',
-    'کی ساخته', 'چه کسی ساخته', 'کی ساخته‌ات', 'چه کسی ساخته‌ات', 'کی ساخته‌تون',
-    'توسعه‌دهنده', 'توسعه دهنده', 'توسعه‌دهندت', 'توسعه دهنده‌ات',
-    'برنامه‌نویس', 'برنامه نویس', 'برنامه‌نویست', 'برنامه نویسش',
-    'دوست', 'رفیق', 'پدر', 'بابا', 'آقا', 'استاد',
-    'ایجاد کننده', 'ایجادکننده', 'خالق', 'بانی', 'پدیدآورنده',
-    'مالک', 'صاحب', 'مدیر', 'مدیریت', 'تیم', 'گروه',
-    'شرکت', 'سازمان', 'موسسه', 'مجموعه',
-    
-    // ترکیبی
-    'کی تو', 'کی این', 'کی بات', 'کی ربات', 'کی هوش',
-    'چی ساختی', 'چی درست کردی', 'چی نوشتی',
-    'پشتت کیه', 'پشت سرت', 'پشت و پناه',
-    'متعلق به کیه', 'مال کیه', 'مال کی',
-    
-    // انگلیسی
-    'who made you', 'who created you', 'your creator', 'your father',
-    'who built you', 'who developed you', 'who programmed you',
-    'your maker', 'your owner', 'your boss', 'your master',
-    
-    // اسم خاص
-    'pouya', 'پویا', 'عارف', 'عارف‌زاده', 'عارف زاده', 'پویا عارف',
-    'pooya', 'arefzadeh', 'aref', 'pouya arefzadeh'
+  // ===== قانون ویژه: شناسایی سوال درباره سازنده =====
+  const creatorResponse = checkCreatorQuestion(lastMessage);
+  if (creatorResponse) {
+    return streamText(creatorResponse, onChunk, signal);
+  }
+  
+  // ===== جستجوی هوشمند در منابع مختلف =====
+  const searchResults = await smartSearch(lastMessage);
+  
+  // ===== ساخت پرامپت با اطلاعات جستجو شده =====
+  const enhancedPrompt = buildEnhancedPrompt(lastMessage, searchResults);
+  
+  // ===== ارسال به API =====
+  const formattedMessages = [
+    { role: 'system', content: SYSTEM_PROMPT },
+    { role: 'system', content: enhancedPrompt },
+    ...messages.map((m) => ({
+      role: m.role === 'user' ? 'user' : 'assistant',
+      content: m.content,
+    })),
   ];
+  
+  // ===== تلاش با API‌های مختلف =====
+  const apis = [
+    () => callOpenAI(formattedMessages, model, onChunk, signal),
+    () => callMistral(formattedMessages, model, onChunk, signal),
+    () => callGroq(formattedMessages, model, onChunk, signal),
+    () => callPollinations(formattedMessages, model, onChunk, signal),
+  ];
+  
+  for (const apiCall of apis) {
+    try {
+      const result = await apiCall();
+      if (result) return result;
+    } catch (error) {
+      console.warn('API call failed, trying next...', error);
+      continue;
+    }
+  }
+  
+  throw new Error('تمامی روش‌های ارتباط با AI ناموفق بود. لطفاً دوباره تلاش کنید.');
+}
 
-  // بررسی با کلمات کلیدی
-  const hasCreatorKeyword = creatorKeywords.some(keyword => 
-    lastMessage.includes(keyword)
-  );
+// ===== توابع کمکی =====
 
-  // بررسی با ترکیب کلمات (برای حالت‌های خاص)
-  const hasCreatorPhrase = 
-    (lastMessage.includes('کی') && (lastMessage.includes('ساخت') || lastMessage.includes('درست') || lastMessage.includes('نوشت') || lastMessage.includes('برنامه'))) ||
-    (lastMessage.includes('چه') && (lastMessage.includes('کسی') || lastMessage.includes('کس')) && (lastMessage.includes('ساخت') || lastMessage.includes('درست'))) ||
-    (lastMessage.includes('توسط') && (lastMessage.includes('چه') || lastMessage.includes('کی'))) ||
-    (lastMessage.includes('زیر') && lastMessage.includes('نظر')) ||
-    (lastMessage.includes('متعلق') && (lastMessage.includes('به') || lastMessage.includes('کی'))) ||
-    (lastMessage.includes('پشت') && (lastMessage.includes('کار') || lastMessage.includes('صحنه') || lastMessage.includes('تولید')));
-
-  // اگر هر کدوم از شرط‌ها درست بود، پاسخ بده
-  if (hasCreatorKeyword || hasCreatorPhrase) {
-    const specialAnswer = `من رو **پویا عارف‌زاده** (Pouya Arefzadeh) طراحی و توسعه داده‌ست. ایشون یک توسعه‌دهندهٔ وب و مهندس هوش مصنوعی هستن با ۷ سال تجربهٔ متمرکز و تخصصی. 
+function checkCreatorQuestion(text: string): string | null {
+  const lower = text.toLowerCase();
+  const keywords = [
+    'سازنده', 'سازندت', 'سازنده‌ات', 'عقبه', 'پشت صحنه',
+    'کی ساخته', 'چه کسی ساخته', 'توسعه‌دهنده', 'برنامه‌نویس',
+    'دوست', 'پدر', 'ایجاد کننده', 'خالق', 'مالک',
+    'who made you', 'who created you', 'your creator',
+    'پویا', 'عارف', 'pooya', 'arefzadeh'
+  ];
+  
+  const hasKeyword = keywords.some(k => lower.includes(k));
+  const hasPhrase = 
+    (lower.includes('کی') && (lower.includes('ساخت') || lower.includes('درست'))) ||
+    (lower.includes('چه') && lower.includes('کسی') && (lower.includes('ساخت') || lower.includes('درست')));
+  
+  if (hasKeyword || hasPhrase) {
+    return `من رو **پویا عارف‌زاده** (Pouya Arefzadeh) طراحی و توسعه داده‌ست. ایشون یک توسعه‌دهندهٔ وب و مهندس هوش مصنوعی هستن با ۷ سال تجربهٔ متمرکز و تخصصی. 
 
 📋 **اطلاعات شناسنامه‌ای:**
 - تولد: ۱۳۸۷
@@ -124,137 +145,229 @@ export async function streamAIResponse(
 توسعه‌دهندهٔ وب و مهندس هوش مصنوعی با ۷ سال تجربهٔ متمرکز و تخصصی (نه صرفاً کار با فریم‌ورک، بلکه طراحی معماری، بهینه‌سازی و پیاده‌سازی سیستم‌های هوشمند). زادهٔ اردبیل و فعال در اکوسیستم فنی تهران-اردبیل؛ پل زدن بین نیازهای بازار پایتخت و آرامشِ کار عمیق در شهرِ خودم. علاقه‌مند به سیستم‌های توصیه‌گر، پردازش زبان طبیعی و استقرارِ مدل در محیط‌های تولید (MLOps). روال کاری: کد تمیز، تست‌پذیری بالا، مستندسازیِ زنده و تحویلِ ارزشِ کسب‌وکاری، نه صرفاً خروجیِ تکنیکال.
 
 🔗 نمونه‌کارها و مقالاتِ فنی من در وب‌سایت شخصی‌ام (pouya-web.vercel.app) قابل مشاهده است.`;
-
-    for (const char of specialAnswer) {
-      if (signal?.aborted) break;
-      onChunk(char);
-      await new Promise((r) => setTimeout(r, 10));
-    }
-    return specialAnswer;
   }
-  // ===== پایان قانون ویژه =====
-
-  const formattedMessages = [
-    { role: 'system', content: SYSTEM_PROMPT },
-    ...messages.map((m) => ({
-      role: m.role === 'user' ? 'user' : 'assistant',
-      content: m.content,
-    })),
-  ];
-
-  // Try streaming endpoint first
-  try {
-    const response = await fetch('https://text.pollinations.ai/openai', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model,
-        messages: formattedMessages,
-        stream: true,
-        seed: Math.floor(Math.random() * 100000),
-      }),
-      signal,
-    });
-
-    if (!response.ok || !response.body) {
-      throw new Error('Streaming failed');
-    }
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let fullText = '';
-    let buffer = '';
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
-
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed || !trimmed.startsWith('data:')) continue;
-        const data = trimmed.slice(5).trim();
-        if (data === '[DONE]') continue;
-
-        try {
-          const parsed = JSON.parse(data);
-          const delta = parsed.choices?.[0]?.delta?.content;
-          if (delta) {
-            fullText += delta;
-            onChunk(delta);
-          }
-        } catch {
-          // Ignore parse errors
-        }
-      }
-    }
-
-    if (fullText) return fullText;
-  } catch (err) {
-    if (signal?.aborted) throw err;
-    // Fall through to non-streaming
-  }
-
-  // Fallback: non-streaming
-  try {
-    const response = await fetch('https://text.pollinations.ai/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model,
-        messages: formattedMessages,
-        seed: Math.floor(Math.random() * 100000),
-      }),
-      signal,
-    });
-
-    if (!response.ok) throw new Error('API failed');
-    const text = await response.text();
-
-    // Simulate streaming for UX
-    let fullText = '';
-    const words = text.split(/(\s+)/);
-    for (const word of words) {
-      if (signal?.aborted) break;
-      fullText += word;
-      onChunk(word);
-      await new Promise((r) => setTimeout(r, 12));
-    }
-    return fullText;
-  } catch (err) {
-    if (signal?.aborted) throw err;
-
-    // Last resort: GET endpoint
-    try {
-      const lastUserMessage = messages[messages.length - 1]?.content || '';
-      const prompt = encodeURIComponent(lastUserMessage);
-      const response = await fetch(
-        `https://text.pollinations.ai/${prompt}?model=${model}&system=${encodeURIComponent(SYSTEM_PROMPT)}`,
-        { signal }
-      );
-      if (!response.ok) throw new Error('GET failed');
-      const text = await response.text();
-      let fullText = '';
-      for (const char of text) {
-        if (signal?.aborted) break;
-        fullText += char;
-        onChunk(char);
-        await new Promise((r) => setTimeout(r, 8));
-      }
-      return fullText;
-    } catch (fallbackErr) {
-      if (signal?.aborted) throw fallbackErr;
-      throw new Error('تمام روش‌های ارتباط با AI ناموفق بود. لطفاً دوباره تلاش کنید.');
-    }
-  }
+  return null;
 }
 
-// Generate image using Pollinations
+async function smartSearch(query: string): Promise<SearchResult[]> {
+  const results: SearchResult[] = [];
+  
+  // جستجوی همزمان در چند منبع
+  const [wikiEn, wikiFa, wikidata, knowledge] = await Promise.all([
+    searchWikipedia(query),
+    searchWikipediaFa(query),
+    searchWikidata(query),
+    searchKnowledge(query),
+  ]);
+  
+  // ترکیب نتایج
+  results.push(...wikiEn);
+  results.push(...wikiFa);
+  results.push(...wikidata);
+  results.push(...knowledge);
+  
+  // حذف موارد تکراری بر اساس عنوان
+  const unique = new Map<string, SearchResult>();
+  for (const result of results) {
+    const key = result.title.substring(0, 50);
+    if (!unique.has(key) || (result.relevance || 0) > (unique.get(key)?.relevance || 0)) {
+      unique.set(key, result);
+    }
+  }
+  
+  return Array.from(unique.values()).slice(0, 7);
+}
+
+function buildEnhancedPrompt(query: string, searchResults: SearchResult[]): string {
+  if (searchResults.length === 0) {
+    return '⚠️ اطلاعات اضافی از منابع معتبر یافت نشد. لطفاً از دانش خودت استفاده کن.';
+  }
+  
+  let prompt = '📚 **اطلاعات اضافی از منابع معتبر برای پاسخ‌دهی دقیق‌تر:**\n\n';
+  
+  for (let i = 0; i < Math.min(searchResults.length, 5); i++) {
+    const result = searchResults[i];
+    prompt += `### ${i + 1}. ${result.title}\n`;
+    prompt += `📖 **منبع:** ${result.source}\n`;
+    prompt += `📝 **متن:** ${result.content.substring(0, 1500)}\n`;
+    if (result.url) {
+      prompt += `🔗 **لینک:** ${result.url}\n`;
+    }
+    prompt += '\n---\n\n';
+  }
+  
+  prompt += `\n💡 **دستورالعمل:** بر اساس اطلاعات بالا و دانش خودت به سوال کاربر پاسخ بده. اگر اطلاعات کافی نبود، از دانش خودت استفاده کن و به کاربر بگو که اطلاعات از کجا آمده است.`;
+  
+  return prompt;
+}
+
+// ===== توابع فراخوانی API =====
+
+async function callOpenAI(
+  messages: any[],
+  model: string,
+  onChunk: (chunk: string) => void,
+  signal?: AbortSignal
+): Promise<string> {
+  if (!ENV.OPENAI_API_KEY) throw new Error('OpenAI API key not found');
+  
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${ENV.OPENAI_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: model === 'openai' ? 'gpt-3.5-turbo' : 'gpt-3.5-turbo',
+      messages,
+      stream: true,
+      max_tokens: ENV.MAX_TOKENS,
+    }),
+    signal,
+  });
+  
+  if (!response.ok) throw new Error('OpenAI API error');
+  return processStream(response, onChunk);
+}
+
+async function callMistral(
+  messages: any[],
+  model: string,
+  onChunk: (chunk: string) => void,
+  signal?: AbortSignal
+): Promise<string> {
+  if (!ENV.MISTRAL_API_KEY) throw new Error('Mistral API key not found');
+  
+  const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${ENV.MISTRAL_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'mistral-tiny',
+      messages,
+      stream: true,
+      max_tokens: ENV.MAX_TOKENS,
+    }),
+    signal,
+  });
+  
+  if (!response.ok) throw new Error('Mistral API error');
+  return processStream(response, onChunk);
+}
+
+async function callGroq(
+  messages: any[],
+  model: string,
+  onChunk: (chunk: string) => void,
+  signal?: AbortSignal
+): Promise<string> {
+  if (!ENV.GROQ_API_KEY) throw new Error('Groq API key not found');
+  
+  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${ENV.GROQ_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'mixtral-8x7b-32768',
+      messages,
+      stream: true,
+      max_tokens: ENV.MAX_TOKENS,
+    }),
+    signal,
+  });
+  
+  if (!response.ok) throw new Error('Groq API error');
+  return processStream(response, onChunk);
+}
+
+async function callPollinations(
+  messages: any[],
+  model: string,
+  onChunk: (chunk: string) => void,
+  signal?: AbortSignal
+): Promise<string> {
+  const response = await fetch(`${ENV.POLLINATIONS_URL}/openai`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model,
+      messages,
+      stream: true,
+      seed: Math.floor(Math.random() * 100000),
+    }),
+    signal,
+  });
+  
+  if (!response.ok) throw new Error('Pollinations API error');
+  return processStream(response, onChunk);
+}
+
+// ===== پردازش استریم =====
+
+async function processStream(
+  response: Response,
+  onChunk: (chunk: string) => void
+): Promise<string> {
+  if (!response.body) throw new Error('No response body');
+  
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let fullText = '';
+  let buffer = '';
+  
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+    
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || !trimmed.startsWith('data:')) continue;
+      const data = trimmed.slice(5).trim();
+      if (data === '[DONE]') continue;
+      
+      try {
+        const parsed = JSON.parse(data);
+        const delta = parsed.choices?.[0]?.delta?.content;
+        if (delta) {
+          fullText += delta;
+          onChunk(delta);
+        }
+      } catch {
+        // Ignore parse errors
+      }
+    }
+  }
+  
+  return fullText;
+}
+
+// ===== استریم کردن متن (برای پاسخ‌های آماده) =====
+
+async function streamText(
+  text: string,
+  onChunk: (chunk: string) => void,
+  signal?: AbortSignal
+): Promise<string> {
+  for (const char of text) {
+    if (signal?.aborted) break;
+    onChunk(char);
+    await new Promise(r => setTimeout(r, 10));
+  }
+  return text;
+}
+
+// ===== تولید تصویر =====
+
 export function generateAIImage(prompt: string): string {
   const encoded = encodeURIComponent(prompt);
   const seed = Math.floor(Math.random() * 100000);
-  return `https://image.pollinations.ai/prompt/${encoded}?width=512&height=512&seed=${seed}&nologo=true&model=flux`;
+  return `${ENV.POLLINATIONS_IMAGE_URL}/prompt/${encoded}?width=512&height=512&seed=${seed}&nologo=true&model=flux`;
 }
