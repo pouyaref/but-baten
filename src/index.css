@@ -369,3 +369,157 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+/* index.css - اضافه کن به انتهای فایل */
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes avatar-pop {
+  0% {
+    transform: scale(0) rotate(-10deg);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.2) rotate(2deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.5s ease-out forwards;
+}
+
+.animate-avatar-pop {
+  animation: avatar-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-pulse-slow {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Prose Override */
+.prose pre {
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+.prose code {
+  direction: ltr !important;
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes avatar-pop {
+  0% {
+    transform: scale(0) rotate(-10deg);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.2) rotate(2deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.5s ease-out forwards;
+}
+
+.animate-avatar-pop {
+  animation: avatar-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-pulse-slow {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.prose pre {
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+.prose code {
+  direction: ltr !important;
+}

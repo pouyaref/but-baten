@@ -30,10 +30,11 @@ export default function App() {
   const [newMsgIds, setNewMsgIds] = useState<Set<string>>(new Set());
   const [selectedModel, setSelectedModel] = useState('openai');
   const [error, setError] = useState<string | null>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  const activeConv = conversations.find((c) => c.id === activeId)!;
+  const activeConv = conversations.find((c) => c.id === activeId);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -42,6 +43,16 @@ export default function App() {
   useEffect(() => {
     scrollToBottom();
   }, [activeConv?.messages, isTyping]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 768) {
+        setIsSidebarOpen(false);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const updateConversation = (id: string, updater: (c: Conversation) => Conversation) => {
     setConversations((prev) => prev.map((c) => (c.id === id ? updater(c) : c)));
@@ -62,7 +73,6 @@ export default function App() {
     setNewMsgIds((prev) => new Set(prev).add(botMsg.id));
     setStreamingId(botMsg.id);
 
-    // Add empty bot message
     updateConversation(conversationId, (c) => ({
       ...c,
       title: userMessageText && c.messages.length === 0
@@ -76,7 +86,6 @@ export default function App() {
         messages,
         selectedModel,
         (chunk) => {
-          // Update streaming message with new chunk
           updateConversation(conversationId, (c) => ({
             ...c,
             messages: c.messages.map((m) =>
@@ -113,6 +122,8 @@ export default function App() {
   };
 
   const handleSend = async (text: string) => {
+    if (!text.trim()) return;
+    
     const userMsg: Message = {
       id: generateId(),
       role: 'user',
@@ -122,19 +133,22 @@ export default function App() {
 
     setNewMsgIds((prev) => new Set(prev).add(userMsg.id));
 
-    const currentMessages = [...activeConv.messages, userMsg];
+    const currentMessages = activeConv ? [...activeConv.messages, userMsg] : [userMsg];
 
-    updateConversation(activeId, (c) => ({
-      ...c,
-      title: c.messages.length === 0 ? text.slice(0, 30) + (text.length > 30 ? '...' : '') : c.title,
-      messages: [...c.messages, userMsg],
-    }));
+    if (activeConv) {
+      updateConversation(activeId, (c) => ({
+        ...c,
+        title: c.messages.length === 0 ? text.slice(0, 30) + (text.length > 30 ? '...' : '') : c.title,
+        messages: [...c.messages, userMsg],
+      }));
+    }
 
     await sendAIRequest(activeId, currentMessages, text);
   };
 
   const handleRegenerate = async () => {
-    // Find last user message and remove everything after it
+    if (!activeConv) return;
+    
     const msgs = [...activeConv.messages];
     let lastUserIdx = -1;
     for (let i = msgs.length - 1; i >= 0; i--) {
@@ -157,6 +171,7 @@ export default function App() {
     setConversations((prev) => [newConv, ...prev]);
     setActiveId(newConv.id);
     setError(null);
+    setIsSidebarOpen(false);
   };
 
   const handleDeleteConversation = (id: string) => {
@@ -174,13 +189,15 @@ export default function App() {
 
   const handleClear = () => {
     if (abortRef.current) abortRef.current.abort();
-    updateConversation(activeId, (c) => ({ ...c, messages: [], title: 'گفتگوی جدید' }));
+    if (activeConv) {
+      updateConversation(activeId, (c) => ({ ...c, messages: [], title: 'گفتگوی جدید' }));
+    }
     setError(null);
   };
 
   const handleImageGenerate = () => {
     const prompt = window.prompt('توضیح تصویری که می‌خواهید بسازید را وارد کنید:');
-    if (!prompt) return;
+    if (!prompt || !activeConv) return;
 
     const userMsg: Message = {
       id: generateId(),
@@ -206,85 +223,69 @@ export default function App() {
     }));
   };
 
-  const lastBotIndex = [...activeConv.messages].reverse().findIndex((m) => m.role === 'bot');
-  const lastBotId = lastBotIndex >= 0 ? activeConv.messages[activeConv.messages.length - 1 - lastBotIndex].id : null;
+  const lastBotIndex = activeConv ? [...activeConv.messages].reverse().findIndex((m) => m.role === 'bot') : -1;
+  const lastBotId = lastBotIndex >= 0 && activeConv ? activeConv.messages[activeConv.messages.length - 1 - lastBotIndex].id : null;
 
   return (
-    <div
-      className="flex h-screen w-screen overflow-hidden relative"
-      style={{ background: '#050914', direction: 'rtl' }}
-    >
+    <div className="flex h-screen w-screen overflow-hidden bg-[#0a0a0f] text-white font-sans">
       <ParticleBackground />
 
-      <div className="fixed inset-0 grid-bg opacity-30 pointer-events-none" style={{ zIndex: 0 }} />
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 md:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
 
-      <div
-        className="fixed pointer-events-none"
-        style={{
-          zIndex: 0,
-          top: '10%',
-          left: '30%',
-          width: '600px',
-          height: '600px',
-          background: 'radial-gradient(circle, rgba(59,130,246,0.06) 0%, transparent 70%)',
-          transform: 'translate(-50%,-50%)',
-        }}
-      />
-      <div
-        className="fixed pointer-events-none"
-        style={{
-          zIndex: 0,
-          bottom: '10%',
-          right: '20%',
-          width: '400px',
-          height: '400px',
-          background: 'radial-gradient(circle, rgba(139,92,246,0.05) 0%, transparent 70%)',
-        }}
-      />
+      <div className={`
+        fixed md:relative z-50 h-full transition-all duration-300 ease-in-out
+        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+        w-[280px] sm:w-[320px] flex-shrink-0
+      `}>
+        <Sidebar
+          conversations={conversations || []}
+          activeId={activeId}
+          onSelect={(id) => {
+            setActiveId(id);
+            setIsSidebarOpen(false);
+          }}
+          onNew={handleNewConversation}
+          onDelete={handleDeleteConversation}
+          onClose={() => setIsSidebarOpen(false)}
+          isMobile={isSidebarOpen}
+        />
+      </div>
 
-      <Sidebar
-        conversations={conversations}
-        activeId={activeId}
-        onSelect={setActiveId}
-        onNew={handleNewConversation}
-        onDelete={handleDeleteConversation}
-      />
-
-      <main className="flex flex-col flex-1 min-w-0 relative" style={{ zIndex: 2 }}>
+      <main className="flex flex-col flex-1 min-w-0 h-full relative bg-[#0a0a0f]">
         <ChatHeader
           onClear={handleClear}
-          messageCount={activeConv?.messages.length ?? 0}
+          messageCount={activeConv?.messages?.length ?? 0}
           selectedModel={selectedModel}
           onSelectModel={setSelectedModel}
           onImageGenerate={handleImageGenerate}
           onCancel={() => abortRef.current?.abort()}
           isStreaming={isTyping}
+          onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
         />
 
         {error && (
-          <div
-            className="mx-4 mt-2 px-3 py-2 rounded-lg text-xs text-red-300 flex items-center gap-2"
-            style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)' }}
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="8" x2="12" y2="12" />
-              <line x1="12" y1="16" x2="12.01" y2="16" />
-            </svg>
-            {error}
-            <button onClick={() => setError(null)} className="mr-auto text-red-400 hover:text-red-200">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M18 6 6 18M6 6l12 12" />
-              </svg>
+          <div className="mx-4 mt-2 px-4 py-3 rounded-xl text-sm text-red-400 flex items-center gap-3 bg-red-500/10 border border-red-500/20 backdrop-blur-sm">
+            <span className="text-lg">⚠️</span>
+            <span className="flex-1">{error}</span>
+            <button 
+              onClick={() => setError(null)}
+              className="p-1 hover:bg-red-500/20 rounded-lg transition-colors"
+            >
+              ✕
             </button>
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto">
-          {activeConv?.messages.length === 0 ? (
+        <div className="flex-1 overflow-y-auto scroll-smooth">
+          {!activeConv || activeConv.messages.length === 0 ? (
             <WelcomeScreen onSuggestion={handleSend} />
           ) : (
-            <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+            <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
               {activeConv.messages.map((msg) => (
                 <MessageBubble
                   key={msg.id}
@@ -301,8 +302,10 @@ export default function App() {
           )}
         </div>
 
-        <div className="max-w-4xl w-full mx-auto">
-          <ChatInput onSend={handleSend} disabled={isTyping} />
+        <div className="border-t border-white/5 bg-[#0a0a0f]/80 backdrop-blur-sm">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4">
+            <ChatInput onSend={handleSend} disabled={isTyping} />
+          </div>
         </div>
       </main>
     </div>
