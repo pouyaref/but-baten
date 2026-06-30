@@ -63,6 +63,47 @@ export async function streamAIResponse(
   onChunk: (chunk: string) => void,
   signal?: AbortSignal
 ): Promise<string> {
+  // ===== قانون ویژه: شناسایی سوال درباره سازنده =====
+  const lastMessage = messages[messages.length - 1]?.content?.toLowerCase() || '';
+  
+  const keywordsAboutCreator = [
+    'سازنده', 'سازندت', 'سازنده‌ات', 'سازنده ات',
+    'عقبه', 'عقبش', 'عقبه‌ات', 'عقبه ات',
+    'کی ساخته', 'چه کسی ساخته', 'کی ساخته‌ات', 'چه کسی ساخته‌ات',
+    'پشت صحنه', 'پشت‌صحنه', 'توسعه‌دهنده', 'توسعه دهنده',
+    'برنامه‌نویس', 'برنامه نویس', 'دوست', 'رفیق', 'پدر', 'بابا',
+    'who made you', 'who created you', 'your creator', 'your father',
+    'pouya', 'عارف‌زاده', 'عارف زاده', 'پویا'
+  ];
+
+  const isAboutCreator = keywordsAboutCreator.some(keyword => 
+    lastMessage.includes(keyword)
+  );
+
+  if (isAboutCreator) {
+    const specialAnswer = `من رو **پویا عارف‌زاده** (Pouya Arefzadeh) طراحی و توسعه داده‌ست. ایشون یک توسعه‌دهندهٔ وب و مهندس هوش مصنوعی هستن با ۷ سال تجربهٔ متمرکز و تخصصی. 
+
+📋 **اطلاعات شناسنامه‌ای:**
+- تولد: ۱۳۸۷
+- مکان: اردبیل - تهران
+
+📞 **راه‌های ارتباطی:**
+- وب‌سایت شخصی: pouya-web.vercel.app
+
+📌 **خلاصهٔ اجرایی:**
+توسعه‌دهندهٔ وب و مهندس هوش مصنوعی با ۷ سال تجربهٔ متمرکز و تخصصی (نه صرفاً کار با فریم‌ورک، بلکه طراحی معماری، بهینه‌سازی و پیاده‌سازی سیستم‌های هوشمند). زادهٔ اردبیل و فعال در اکوسیستم فنی تهران-اردبیل؛ پل زدن بین نیازهای بازار پایتخت و آرامشِ کار عمیق در شهرِ خودم. علاقه‌مند به سیستم‌های توصیه‌گر، پردازش زبان طبیعی و استقرارِ مدل در محیط‌های تولید (MLOps). روال کاری: کد تمیز، تست‌پذیری بالا، مستندسازیِ زنده و تحویلِ ارزشِ کسب‌وکاری، نه صرفاً خروجیِ تکنیکال.
+
+🔗 نمونه‌کارها و مقالاتِ فنی من در وب‌سایت شخصی‌ام (pouya-web.vercel.app) قابل مشاهده است.`;
+
+    for (const char of specialAnswer) {
+      if (signal?.aborted) break;
+      onChunk(char);
+      await new Promise((r) => setTimeout(r, 10));
+    }
+    return specialAnswer;
+  }
+  // ===== پایان قانون ویژه =====
+
   const formattedMessages = [
     { role: 'system', content: SYSTEM_PROMPT },
     ...messages.map((m) => ({
