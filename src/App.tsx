@@ -46,7 +46,7 @@ export default function App() {
 
   useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth >= 768) {
+      if (window.innerWidth >= 1024) {
         setIsSidebarOpen(false);
       }
     };
@@ -227,23 +227,23 @@ export default function App() {
   const lastBotId = lastBotIndex >= 0 && activeConv ? activeConv.messages[activeConv.messages.length - 1 - lastBotIndex].id : null;
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-[#0a0a0f] text-white font-sans">
+    <div className="flex h-screen w-screen overflow-hidden bg-[#050914] text-white">
       <ParticleBackground />
 
       {isSidebarOpen && (
         <div 
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 md:hidden"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
 
       <div className={`
-        fixed md:relative z-50 h-full transition-all duration-300 ease-in-out
-        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
-        w-[280px] sm:w-[320px] flex-shrink-0
+        fixed lg:relative z-50 h-full transition-transform duration-300 ease-in-out
+        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+        w-[280px] sm:w-[300px] flex-shrink-0
       `}>
         <Sidebar
-          conversations={conversations || []}
+          conversations={conversations}
           activeId={activeId}
           onSelect={(id) => {
             setActiveId(id);
@@ -256,7 +256,7 @@ export default function App() {
         />
       </div>
 
-      <main className="flex flex-col flex-1 min-w-0 h-full relative bg-[#0a0a0f]">
+      <div className="flex flex-col flex-1 min-w-0 h-full relative z-10">
         <ChatHeader
           onClear={handleClear}
           messageCount={activeConv?.messages?.length ?? 0}
@@ -269,23 +269,17 @@ export default function App() {
         />
 
         {error && (
-          <div className="mx-4 mt-2 px-4 py-3 rounded-xl text-sm text-red-400 flex items-center gap-3 bg-red-500/10 border border-red-500/20 backdrop-blur-sm">
-            <span className="text-lg">⚠️</span>
-            <span className="flex-1">{error}</span>
-            <button 
-              onClick={() => setError(null)}
-              className="p-1 hover:bg-red-500/20 rounded-lg transition-colors"
-            >
-              ✕
-            </button>
+          <div className="mx-4 mt-2 px-4 py-2 rounded-lg text-sm text-red-400 bg-red-500/10 border border-red-500/20">
+            ⚠️ {error}
+            <button onClick={() => setError(null)} className="ml-2">✕</button>
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto scroll-smooth">
+        <div className="flex-1 overflow-y-auto">
           {!activeConv || activeConv.messages.length === 0 ? (
             <WelcomeScreen onSuggestion={handleSend} />
           ) : (
-            <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
+            <div className="max-w-3xl mx-auto px-4 py-4 space-y-4">
               {activeConv.messages.map((msg) => (
                 <MessageBubble
                   key={msg.id}
@@ -302,12 +296,12 @@ export default function App() {
           )}
         </div>
 
-        <div className="border-t border-white/5 bg-[#0a0a0f]/80 backdrop-blur-sm">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4">
+        <div className="border-t border-white/5 bg-[#050914]/80 px-4 py-3">
+          <div className="max-w-3xl mx-auto">
             <ChatInput onSend={handleSend} disabled={isTyping} />
           </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 }

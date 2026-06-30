@@ -25,7 +25,8 @@ export default function ChatHeader({
   const currentModel = AI_MODELS.find(m => m.id === selectedModel) || AI_MODELS[0];
 
   return (
-    <header className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-white/5 bg-[#0a0a0f]/80 backdrop-blur-sm">
+    <header className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-white/5 bg-[#050914]/80 backdrop-blur-sm flex-shrink-0">
+      {/* Left */}
       <div className="flex items-center gap-3">
         <button
           onClick={onToggleSidebar}
@@ -42,6 +43,7 @@ export default function ChatHeader({
         </div>
       </div>
 
+      {/* Center - Model Selector */}
       <div className="flex items-center gap-2">
         <div className="relative">
           <select
@@ -59,6 +61,7 @@ export default function ChatHeader({
         </div>
       </div>
 
+      {/* Right - Actions */}
       <div className="flex items-center gap-1 sm:gap-2">
         {isStreaming && (
           <button
