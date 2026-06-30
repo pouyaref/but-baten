@@ -1,4 +1,5 @@
 import ModelSelector from './ModelSelector';
+import { useState } from 'react';
 
 interface Props {
   onClear: () => void;
@@ -10,88 +11,216 @@ interface Props {
   isStreaming?: boolean;
 }
 
-export default function ChatHeader({ onClear, messageCount, selectedModel, onSelectModel, onImageGenerate, onCancel, isStreaming }: Props) {
+export default function ChatHeader({ 
+  onClear, 
+  messageCount, 
+  selectedModel, 
+  onSelectModel, 
+  onImageGenerate, 
+  onCancel, 
+  isStreaming 
+}: Props) {
+  const [isHovered, setIsHovered] = useState(false);
+
   return (
     <header
-      className="flex items-center justify-between px-4 md:px-6 py-3 flex-wrap gap-2"
-      style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(5,9,20,0.8)', backdropFilter: 'blur(20px)', zIndex: 5 }}
+      className="relative flex items-center justify-between px-4 md:px-8 py-4 flex-wrap gap-3"
+      style={{
+        background: 'rgba(10, 14, 30, 0.85)',
+        backdropFilter: 'blur(30px)',
+        borderBottom: '1px solid rgba(255,255,255,0.05)',
+        boxShadow: '0 4px 30px rgba(0,0,0,0.3)',
+        zIndex: 50
+      }}
     >
-      {/* Left: Bot info */}
-      <div className="flex items-center gap-3">
-        <div className="relative">
+      {/* پس‌زمینه گرادیانت متحرک */}
+      <div 
+        className="absolute inset-0 opacity-30 pointer-events-none"
+        style={{
+          background: 'radial-gradient(circle at 0% 50%, rgba(59,130,246,0.1), transparent 50%), radial-gradient(circle at 100% 50%, rgba(6,182,212,0.1), transparent 50%)',
+        }}
+      />
+
+      {/* Left: Bot info with Neon Glow */}
+      <div className="flex items-center gap-4 relative z-10">
+        <div className="relative group">
+          {/* حلقه نئونی اطراف آواتار */}
+          <div 
+            className="absolute -inset-1 rounded-2xl opacity-75 blur-md transition-all duration-500 group-hover:opacity-100"
+            style={{
+              background: 'conic-gradient(from 0deg, #06b6d4, #3b82f6, #8b5cf6, #06b6d4)',
+              animation: 'spin 4s linear infinite'
+            }}
+          />
           <div
-            className="w-10 h-10 rounded-xl overflow-hidden animate-pulse-glow"
-            style={{ background: 'linear-gradient(135deg,#06b6d4,#3b82f6)' }}
+            className="relative w-12 h-12 rounded-2xl overflow-hidden"
+            style={{
+              background: 'linear-gradient(135deg, #0f172a, #1e293b)',
+              border: '2px solid rgba(255,255,255,0.1)'
+            }}
           >
-            <img src="/images/bot-avatar.png" alt="BatBaton" className="w-full h-full object-cover" />
+            <img 
+              src="/images/bot-avatar.png" 
+              alt="BatBaton" 
+              className="w-full h-full object-cover"
+            />
           </div>
+          {/* Status dot */}
           <div
-            className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-gray-900 ${
-              isStreaming ? 'bg-yellow-400 animate-pulse' : 'bg-green-400'
+            className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-gray-900 transition-all duration-300 ${
+              isStreaming ? 'bg-yellow-400 animate-pulse' : 'bg-emerald-400'
             }`}
-          ></div>
+            style={{
+              boxShadow: isStreaming 
+                ? '0 0 20px rgba(250,204,21,0.5)' 
+                : '0 0 20px rgba(52,211,153,0.5)'
+            }}
+          />
         </div>
+
         <div>
-          <h2 className="text-white font-bold text-base leading-tight" style={{ textShadow: '0 0 20px rgba(99,179,237,0.3)' }}>
+          <h2 
+            className="text-white font-bold text-lg leading-tight tracking-wide"
+            style={{
+              textShadow: '0 0 30px rgba(99,179,237,0.2), 0 0 60px rgba(99,179,237,0.1)'
+            }}
+          >
             بات باتن
+            <span className="ml-2 text-xs font-normal text-gray-400">v3.0</span>
           </h2>
-          <p className={`text-xs flex items-center gap-1 ${isStreaming ? 'text-yellow-400' : 'text-green-400'}`}>
-            <span className={`w-1.5 h-1.5 rounded-full inline-block ${isStreaming ? 'bg-yellow-400 animate-pulse' : 'bg-green-400'}`}></span>
-            {isStreaming ? 'در حال نوشتن...' : 'آنلاین · قدرت‌گرفته از AI واقعی'}
-          </p>
+          <div className="flex items-center gap-2 mt-0.5">
+            <span className={`w-1.5 h-1.5 rounded-full inline-block transition-all duration-300 ${
+              isStreaming ? 'bg-yellow-400 animate-pulse' : 'bg-emerald-400'
+            }`} />
+            <p className={`text-xs font-medium transition-all duration-300 ${
+              isStreaming ? 'text-yellow-400' : 'text-emerald-400'
+            }`}>
+              {isStreaming ? 'در حال تایپ...' : '● آنلاین · AI واقعی'}
+            </p>
+          </div>
         </div>
       </div>
 
-      {/* Center: Model Selector */}
-      <ModelSelector selectedModel={selectedModel} onSelect={onSelectModel} />
+      {/* Center: Model Selector with Glassmorphism */}
+      <div className="relative z-10 flex items-center">
+        <div 
+          className="px-3 py-1.5 rounded-2xl"
+          style={{
+            background: 'rgba(255,255,255,0.03)',
+            border: '1px solid rgba(255,255,255,0.06)',
+            backdropFilter: 'blur(10px)'
+          }}
+        >
+          <ModelSelector selectedModel={selectedModel} onSelect={onSelectModel} />
+        </div>
+      </div>
 
-      {/* Right: Actions */}
-      <div className="flex items-center gap-2">
+      {/* Right: Actions with Modern Design */}
+      <div className="flex items-center gap-2 relative z-10">
+        {/* Cancel Button */}
         {isStreaming && onCancel && (
           <button
             onClick={onCancel}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-red-300 hover:text-red-200 transition-all duration-200 text-xs font-medium animate-fadeInUp"
-            style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)' }}
-            title="توقف تولید"
+            className="relative flex items-center gap-2 px-4 py-2.5 rounded-2xl text-red-300 hover:text-white transition-all duration-300 text-xs font-bold animate-fadeInUp overflow-hidden group"
+            style={{
+              background: 'rgba(239,68,68,0.12)',
+              border: '1px solid rgba(239,68,68,0.2)',
+              backdropFilter: 'blur(10px)'
+            }}
           >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-              <rect x="6" y="6" width="12" height="12" rx="1" />
+            <span 
+              className="absolute inset-0 bg-gradient-to-r from-red-500/20 to-red-600/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+            />
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" className="relative">
+              <rect x="6" y="6" width="12" height="12" rx="2" />
             </svg>
-            <span className="hidden md:inline">توقف</span>
+            <span className="relative hidden sm:inline">توقف</span>
           </button>
         )}
+
+        {/* Image Generate Button */}
         <button
           onClick={onImageGenerate}
-          className="p-2 rounded-xl text-gray-500 hover:text-purple-400 transition-all duration-200 hidden md:block"
-          style={{ background: 'rgba(255,255,255,0.04)' }}
+          className="relative p-2.5 rounded-2xl text-gray-400 hover:text-purple-400 transition-all duration-300 group overflow-hidden"
+          style={{
+            background: 'rgba(255,255,255,0.03)',
+            border: '1px solid rgba(255,255,255,0.05)',
+            backdropFilter: 'blur(10px)'
+          }}
           title="تولید تصویر با AI"
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <span className="absolute inset-0 bg-gradient-to-r from-purple-500/10 to-pink-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          <svg 
+            width="18" 
+            height="18" 
+            viewBox="0 0 24 24" 
+            fill="none" 
+            stroke="currentColor" 
+            strokeWidth="2"
+            className="relative group-hover:scale-110 transition-transform duration-300"
+          >
             <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
             <circle cx="8.5" cy="8.5" r="1.5" />
             <polyline points="21 15 16 10 5 21" />
           </svg>
         </button>
+
+        {/* Message Count Badge */}
         {messageCount > 0 && (
-          <span
-            className="text-xs text-gray-500 px-2 py-1 rounded-lg hidden md:block"
-            style={{ background: 'rgba(255,255,255,0.04)' }}
+          <div 
+            className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-2xl text-gray-400 text-xs font-medium"
+            style={{
+              background: 'rgba(255,255,255,0.03)',
+              border: '1px solid rgba(255,255,255,0.05)',
+              backdropFilter: 'blur(10px)'
+            }}
           >
-            {messageCount} پیام
-          </span>
+            <span className="text-emerald-400">{messageCount}</span>
+            <span>پیام</span>
+          </div>
         )}
+
+        {/* Clear Chat Button */}
         <button
           onClick={onClear}
-          className="p-2 rounded-xl text-gray-500 hover:text-red-400 transition-all duration-200"
-          style={{ background: 'rgba(255,255,255,0.04)' }}
+          className="relative p-2.5 rounded-2xl text-gray-400 hover:text-red-400 transition-all duration-300 group overflow-hidden"
+          style={{
+            background: 'rgba(255,255,255,0.03)',
+            border: '1px solid rgba(255,255,255,0.05)',
+            backdropFilter: 'blur(10px)'
+          }}
           title="پاک کردن گفتگو"
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <span className="absolute inset-0 bg-gradient-to-r from-red-500/10 to-rose-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          <svg 
+            width="18" 
+            height="18" 
+            viewBox="0 0 24 24" 
+            fill="none" 
+            stroke="currentColor" 
+            strokeWidth="2"
+            className="relative group-hover:scale-110 transition-transform duration-300"
+          >
             <polyline points="3 6 5 6 21 6" />
             <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
           </svg>
         </button>
       </div>
+
+      {/* انیمیشن CSS برای چرخش */}
+      <style>{`
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        @keyframes fadeInUp {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fadeInUp {
+          animation: fadeInUp 0.3s ease-out;
+        }
+      `}</style>
     </header>
   );
 }
